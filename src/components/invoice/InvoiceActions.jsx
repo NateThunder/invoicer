@@ -3,14 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Mail, Send, Printer, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from 'date-fns';
+import { formatCurrency } from '@/lib/currency';
+import { getInvoiceTotals } from '@/lib/invoiceTotals';
 
 export default function InvoiceActions({ invoice, settings }) {
   const [showActions, setShowActions] = useState(false);
   const [error, setError] = useState('');
 
-  const subtotal = invoice.items.reduce((sum, item) => sum + (item.total || 0), 0);
-  const tax = subtotal * 0.1;
-  const total = subtotal + tax;
+  const { total } = getInvoiceTotals(invoice);
 
   const validate = () => {
     if (!invoice.clientName.trim()) return 'Please enter a client name.';
@@ -42,7 +42,7 @@ export default function InvoiceActions({ invoice, settings }) {
     const body = encodeURIComponent(
       `Dear ${invoice.clientName},\n\n` +
       `Please find attached Invoice ${invoice.number} dated ${invoiceDate}.\n\n` +
-      `Amount Due: $${total.toFixed(2)}\n\n` +
+      `Amount Due: ${formatCurrency(total, invoice.currency)}\n\n` +
       `Thank you for your business.\n\n` +
       `Best regards,\n${businessName}`
     );

@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
-import { ChevronDown, Search, X } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 
-export default function ClientSelector({ clients, onSelect, selectedName }) {
+export default function ClientSelector({ clients, onSelect, selectedName, activeClientId }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
@@ -75,10 +75,18 @@ export default function ClientSelector({ clients, onSelect, selectedName }) {
                 <button
                   key={client.id}
                   type="button"
-                  className="w-full text-left px-3 py-2.5 hover:bg-muted transition-colors border-b border-border/50 last:border-0"
+                  className={`w-full text-left px-3 py-2.5 transition-colors border-b border-border/50 last:border-0 ${activeClientId === client.id ? 'bg-accent/5 hover:bg-accent/10' : 'hover:bg-muted'}`}
                   onClick={() => handleSelect(client)}
                 >
-                  <p className="text-sm font-medium text-foreground">{client.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-medium text-foreground">{client.name}</p>
+                    {activeClientId === client.id && (
+                      <span className="inline-flex items-center gap-1 text-[10px] bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full font-semibold shrink-0">
+                        <Check className="w-3 h-3" />
+                        Active
+                      </span>
+                    )}
+                  </div>
                   {client.address && <p className="text-xs text-muted-foreground truncate mt-0.5">{client.address}</p>}
                 </button>
               ))

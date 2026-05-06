@@ -1,11 +1,11 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { ImageIcon } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency';
+import { getInvoiceTotals } from '@/lib/invoiceTotals';
 
 export default function InvoicePreview({ invoice, settings }) {
-  const subtotal = invoice.items.reduce((sum, item) => sum + (item.total || 0), 0);
-  const tax = subtotal * 0.1;
-  const total = subtotal + tax;
+  const { subtotal, taxRate, tax, total, hasTax } = getInvoiceTotals(invoice);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -82,8 +82,8 @@ export default function InvoicePreview({ invoice, settings }) {
             <tr key={i} className="border-b border-gray-100">
               <td className="py-3 text-sm text-gray-800">{item.description || '-'}</td>
               <td className="py-3 text-sm text-gray-600 text-right tabular-nums">{item.quantity}</td>
-              <td className="py-3 text-sm text-gray-600 text-right tabular-nums">${parseFloat(item.rate || 0).toFixed(2)}</td>
-              <td className="py-3 text-sm text-gray-900 font-medium text-right tabular-nums">${item.total.toFixed(2)}</td>
+              <td className="py-3 text-sm text-gray-600 text-right tabular-nums">{formatCurrency(parseFloat(item.rate || 0), invoice.currency)}</td>
+              <td className="py-3 text-sm text-gray-900 font-medium text-right tabular-nums">{formatCurrency(item.total, invoice.currency)}</td>
             </tr>
           ))}
           {invoice.items.filter(item => item.description || item.total > 0).length === 0 && (
@@ -99,15 +99,17 @@ export default function InvoicePreview({ invoice, settings }) {
         <div className="w-64">
           <div className="flex justify-between py-1.5 text-sm">
             <span className="text-gray-500">Subtotal</span>
-            <span className="text-gray-700 tabular-nums">${subtotal.toFixed(2)}</span>
+            <span className="text-gray-700 tabular-nums">{formatCurrency(subtotal, invoice.currency)}</span>
           </div>
-          <div className="flex justify-between py-1.5 text-sm">
-            <span className="text-gray-500">Tax (10%)</span>
-            <span className="text-gray-700 tabular-nums">${tax.toFixed(2)}</span>
-          </div>
+          {hasTax && (
+            <div className="flex justify-between py-1.5 text-sm">
+              <span className="text-gray-500">Tax ({taxRate}%)</span>
+              <span className="text-gray-700 tabular-nums">{formatCurrency(tax, invoice.currency)}</span>
+            </div>
+          )}
           <div className="flex justify-between py-2.5 border-t-2 border-gray-900 mt-1 text-base">
             <span className="font-bold text-gray-900">Total Due</span>
-            <span className="font-bold text-gray-900 tabular-nums">${total.toFixed(2)}</span>
+            <span className="font-bold text-gray-900 tabular-nums">{formatCurrency(total, invoice.currency)}</span>
           </div>
         </div>
       </div>

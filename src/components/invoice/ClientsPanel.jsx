@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Users, Pencil, Trash2, Check, UserCheck } from "lucide-react";
+import { Plus, Users, Pencil, Trash2, Check, UserCheck, Star } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const emptyClient = { name: '', address: '', email: '' };
@@ -40,7 +40,7 @@ function ClientForm({ initial, onSave, onCancel, isNew }) {
   );
 }
 
-export default function ClientsPanel({ clients, onSaveClients, onSelectClient }) {
+export default function ClientsPanel({ clients, activeClient, onSaveClients, onSelectClient, onSetActive }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [flash, setFlash] = useState('');
@@ -52,7 +52,9 @@ export default function ClientsPanel({ clients, onSaveClients, onSelectClient })
 
   const handleAdd = (form) => {
     const newClient = { ...form, id: Date.now().toString() };
-    onSaveClients([...clients, newClient]);
+    const updated = [...clients, newClient];
+    onSaveClients(updated);
+    if (!activeClient) onSetActive(newClient.id);
     setShowForm(false);
     showFeedback('Client saved');
   };
@@ -64,7 +66,11 @@ export default function ClientsPanel({ clients, onSaveClients, onSelectClient })
   };
 
   const handleDelete = (id) => {
-    onSaveClients(clients.filter(c => c.id !== id));
+    const updated = clients.filter(c => c.id !== id);
+    onSaveClients(updated);
+    if (activeClient === id) {
+      onSetActive(updated[0]?.id || null);
+    }
   };
 
   return (
@@ -111,14 +117,27 @@ export default function ClientsPanel({ clients, onSaveClients, onSelectClient })
                 isNew={false}
               />
             ) : (
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:shadow-sm transition-shadow">
+              <div
+                className={`flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${activeClient === client.id ? 'border-accent bg-accent/5 shadow-sm' : 'border-border bg-card hover:shadow-sm'}`}
+                onClick={() => onSetActive(client.id)}
+              >
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{client.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium text-sm truncate">{client.name}</p>
+                    {activeClient === client.id && (
+                      <span className="text-[10px] bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full font-semibold shrink-0">Active</span>
+                    )}
+                  </div>
                   {(client.email || client.address) && (
                     <p className="text-xs text-muted-foreground truncate">{client.email || client.address}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-1 ml-2 shrink-0">
+                <div className="flex items-center gap-1 ml-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {activeClient !== client.id && (
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-accent hover:text-accent" title="Set as active" onClick={() => onSetActive(client.id)}>
+                      <Star className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
                   <Button size="icon" variant="ghost" className="h-8 w-8 text-accent hover:text-accent" title="Use in invoice" onClick={() => onSelectClient(client)}>
                     <UserCheck className="w-4 h-4" />
                   </Button>

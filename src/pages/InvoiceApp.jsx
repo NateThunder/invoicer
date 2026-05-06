@@ -8,14 +8,17 @@ import ClientsPanel from '@/components/invoice/ClientsPanel';
 import InvoiceForm from '@/components/invoice/InvoiceForm';
 import InvoicePreview from '@/components/invoice/InvoicePreview';
 import InvoiceActions from '@/components/invoice/InvoiceActions';
+import { currencyOptions } from '@/lib/currency';
 
 const createEmptyInvoice = (number) => ({
   number,
   date: format(new Date(), 'yyyy-MM-dd'),
   dueDate: '',
+  currency: 'USD',
   clientName: '',
   clientAddress: '',
   clientEmail: '',
+  taxRate: '',
   items: [{ description: '', quantity: 1, rate: 0, total: 0 }],
 });
 
@@ -23,6 +26,7 @@ export default function InvoiceApp() {
   const [businesses, setBusinesses] = useLocalStorage('invoice-businesses', []);
   const [activeBusinessId, setActiveBusinessId] = useLocalStorage('invoice-active-business', null);
   const [clients, setClients] = useLocalStorage('invoice-clients', []);
+  const [activeClientId, setActiveClientId] = useLocalStorage('invoice-active-client', null);
   const [invoiceCounter, setInvoiceCounter] = useLocalStorage('invoice-counter', 1);
   const [activeTab, setActiveTab] = useState('invoice');
 
@@ -34,10 +38,43 @@ export default function InvoiceApp() {
     setInvoice(prev => ({ ...prev, number: invoiceNumber }));
   }, [invoiceNumber]);
 
+  useEffect(() => {
+    if (!invoice.currency) {
+      setInvoice(prev => ({ ...prev, currency: 'USD' }));
+    }
+  }, [invoice.currency]);
+
   const activeBusiness = useMemo(
     () => businesses.find(b => b.id === activeBusinessId) || null,
     [businesses, activeBusinessId]
   );
+  const activeClient = useMemo(
+    () => clients.find(c => c.id === activeClientId) || null,
+    [clients, activeClientId]
+  );
+
+  useEffect(() => {
+    setInvoice(prev => {
+      const nextClientName = activeClient?.name || '';
+      const nextClientAddress = activeClient?.address || '';
+      const nextClientEmail = activeClient?.email || '';
+
+      if (
+        prev.clientName === nextClientName &&
+        prev.clientAddress === nextClientAddress &&
+        prev.clientEmail === nextClientEmail
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        clientName: nextClientName,
+        clientAddress: nextClientAddress,
+        clientEmail: nextClientEmail,
+      };
+    });
+  }, [activeClient, invoice.clientName, invoice.clientAddress, invoice.clientEmail]);
 
   // Build settings shape from active business for InvoicePreview compatibility
   const settings = useMemo(() => ({
@@ -50,12 +87,7 @@ export default function InvoiceApp() {
   }), [activeBusiness]);
 
   const handleSelectClient = (client) => {
-    setInvoice(prev => ({
-      ...prev,
-      clientName: client.name,
-      clientAddress: client.address || '',
-      clientEmail: client.email || '',
-    }));
+    setActiveClientId(client.id);
     setActiveTab('invoice');
   };
 
@@ -141,8 +173,10 @@ export default function InvoiceApp() {
                 <TabsContent value="clients" className="mt-0">
                   <ClientsPanel
                     clients={clients}
+                    activeClient={activeClientId}
                     onSaveClients={setClients}
                     onSelectClient={handleSelectClient}
+                    onSetActive={setActiveClientId}
                   />
                 </TabsContent>
                 <TabsContent value="invoice" className="mt-0">
@@ -151,6 +185,9 @@ export default function InvoiceApp() {
                     onChange={setInvoice}
                     onReset={handleReset}
                     clients={clients}
+                    currencyOptions={currencyOptions}
+                    activeClientId={activeClientId}
+                    onSetActiveClient={setActiveClientId}
                   />
                 </TabsContent>
               </div>
@@ -172,6 +209,9 @@ export default function InvoiceApp() {
               <h2 className="text-sm font-semibold text-foreground">Live Preview</h2>
               {activeBusiness && (
                 <span className="text-xs text-muted-foreground ml-1">- {activeBusiness.businessName}</span>
+              )}
+              {activeClient && (
+                <span className="text-xs text-muted-foreground">for {activeClient.name}</span>
               )}
             </div>
             <InvoicePreview invoice={invoice} settings={settings} />

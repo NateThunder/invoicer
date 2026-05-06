@@ -2,8 +2,9 @@ import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
+import { formatCurrency } from '@/lib/currency';
 
-export default function LineItemsTable({ items, onChange }) {
+export default function LineItemsTable({ items, currency, onChange }) {
   const updateItem = (index, field, value) => {
     const updated = items.map((item, i) => {
       if (i !== index) return item;
@@ -70,7 +71,7 @@ export default function LineItemsTable({ items, onChange }) {
                   />
                 </td>
                 <td className="px-3 py-1.5 text-right text-sm font-medium tabular-nums">
-                  ${item.total.toFixed(2)}
+                  {formatCurrency(item.total, currency)}
                 </td>
                 <td className="px-1 py-1.5">
                   <Button

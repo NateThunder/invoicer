@@ -6,20 +6,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileText, RotateCcw } from "lucide-react";
 import LineItemsTable from './LineItemsTable';
 import ClientSelector from './ClientSelector';
+import { formatCurrency } from '@/lib/currency';
+import { getInvoiceTotals } from '@/lib/invoiceTotals';
 
-export default function InvoiceForm({ invoice, onChange, onReset, clients }) {
+export default function InvoiceForm({ invoice, onChange, onReset, clients, currencyOptions, activeClientId, onSetActiveClient }) {
   const update = (field, value) => onChange({ ...invoice, [field]: value });
 
-  const subtotal = invoice.items.reduce((sum, item) => sum + (item.total || 0), 0);
-  const tax = subtotal * 0.1;
-  const total = subtotal + tax;
+  const { subtotal, taxRate, tax, total, hasTax } = getInvoiceTotals(invoice);
 
   const handleClientSelect = (client) => {
     if (!client) {
+      onSetActiveClient(null);
       // Clear client fields
       onChange({ ...invoice, clientName: '', clientAddress: '', clientEmail: '' });
       return;
     }
+    onSetActiveClient(client.id);
     onChange({
       ...invoice,
       clientName: client.name,
@@ -47,18 +49,32 @@ export default function InvoiceForm({ invoice, onChange, onReset, clients }) {
       </div>
 
       {/* Invoice meta */}
-      <div className="grid sm:grid-cols-3 gap-4">
-        <div className="space-y-1.5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="space-y-1.5 min-w-0">
           <Label className="text-sm font-medium">Invoice #</Label>
           <Input value={invoice.number} readOnly className="bg-muted/50 font-mono text-sm" />
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium">Invoice Date</Label>
-          <Input type="date" value={invoice.date} onChange={(e) => update('date', e.target.value)} />
+        <div className="space-y-1.5 min-w-0">
+          <Label className="text-sm font-medium whitespace-nowrap">Invoice Date</Label>
+          <Input type="date" value={invoice.date} onChange={(e) => update('date', e.target.value)} className="px-2 text-sm" />
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium">Due Date</Label>
-          <Input type="date" value={invoice.dueDate} onChange={(e) => update('dueDate', e.target.value)} />
+        <div className="space-y-1.5 min-w-0">
+          <Label className="text-sm font-medium whitespace-nowrap">Due Date</Label>
+          <Input type="date" value={invoice.dueDate} onChange={(e) => update('dueDate', e.target.value)} className="px-2 text-sm" />
+        </div>
+        <div className="space-y-1.5 sm:col-span-3">
+          <Label className="text-sm font-medium">Currency</Label>
+          <select
+            value={invoice.currency || 'USD'}
+            onChange={(e) => update('currency', e.target.value)}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            {currencyOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.value} - {option.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -69,6 +85,7 @@ export default function InvoiceForm({ invoice, onChange, onReset, clients }) {
           clients={clients}
           onSelect={handleClientSelect}
           selectedName={invoice.clientName}
+          activeClientId={activeClientId}
         />
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
@@ -85,7 +102,20 @@ export default function InvoiceForm({ invoice, onChange, onReset, clients }) {
       {/* Line items */}
       <div>
         <Label className="text-sm font-medium mb-3 block">Line Items</Label>
-        <LineItemsTable items={invoice.items} onChange={(items) => update('items', items)} />
+        <LineItemsTable items={invoice.items} currency={invoice.currency} onChange={(items) => update('items', items)} />
+      </div>
+
+      {/* Tax */}
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium">Tax (%)</Label>
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Optional"
+          value={invoice.taxRate ?? ''}
+          onChange={(e) => update('taxRate', e.target.value)}
+        />
       </div>
 
       {/* Totals */}
@@ -93,15 +123,17 @@ export default function InvoiceForm({ invoice, onChange, onReset, clients }) {
         <div className="w-64 space-y-2 text-sm">
           <div className="flex justify-between py-1">
             <span className="text-muted-foreground">Subtotal</span>
-            <span className="font-medium tabular-nums">${subtotal.toFixed(2)}</span>
+            <span className="font-medium tabular-nums">{formatCurrency(subtotal, invoice.currency)}</span>
           </div>
-          <div className="flex justify-between py-1">
-            <span className="text-muted-foreground">Tax (10%)</span>
-            <span className="font-medium tabular-nums">${tax.toFixed(2)}</span>
-          </div>
+          {hasTax && (
+            <div className="flex justify-between py-1">
+              <span className="text-muted-foreground">Tax ({taxRate}%)</span>
+              <span className="font-medium tabular-nums">{formatCurrency(tax, invoice.currency)}</span>
+            </div>
+          )}
           <div className="flex justify-between py-2 border-t-2 border-foreground/10 text-base font-semibold">
             <span>Total</span>
-            <span className="tabular-nums">${total.toFixed(2)}</span>
+            <span className="tabular-nums">{formatCurrency(total, invoice.currency)}</span>
           </div>
         </div>
       </div>

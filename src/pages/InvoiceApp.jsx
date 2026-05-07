@@ -31,7 +31,7 @@ export default function InvoiceApp() {
   const [activeTab, setActiveTab] = useState('invoice');
 
   const invoiceNumber = useMemo(() => `INV-${String(invoiceCounter).padStart(4, '0')}`, [invoiceCounter]);
-  const [invoice, setInvoice] = useState(() => createEmptyInvoice(invoiceNumber));
+  const [invoice, setInvoice] = useLocalStorage('invoice-draft', createEmptyInvoice(invoiceNumber));
 
   // Keep invoice number in sync with counter
   useEffect(() => {

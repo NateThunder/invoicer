@@ -1,14 +1,24 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Mail, Send, Printer, AlertCircle } from "lucide-react";
+import { Mail, Send, Printer, AlertCircle, FileDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/currency';
 import { getInvoiceTotals } from '@/lib/invoiceTotals';
 
+const getPdfFileName = (invoiceNumber) => {
+  const safeNumber = String(invoiceNumber || 'invoice')
+    .trim()
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '-')
+    .replace(/\s+/g, '-');
+
+  return `${safeNumber || 'invoice'}.pdf`;
+};
+
 export default function InvoiceActions({ invoice, settings }) {
   const [showActions, setShowActions] = useState(false);
   const [error, setError] = useState('');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const { total } = getInvoiceTotals(invoice);
 
@@ -33,6 +43,77 @@ export default function InvoiceActions({ invoice, settings }) {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleSavePdf = async () => {
+    const err = validate();
+    if (err) {
+      setError(err);
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    const invoicePreview = document.getElementById('invoice-preview-print');
+    if (!invoicePreview) {
+      setError('Invoice preview is not available.');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    setError('');
+    setIsGeneratingPdf(true);
+
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+
+      const canvas = await html2canvas(invoicePreview, {
+        backgroundColor: '#ffffff',
+        scale: Math.min(window.devicePixelRatio || 1, 2),
+        useCORS: true,
+      });
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'a4',
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 24;
+      const availableWidth = pageWidth - margin * 2;
+      const availableHeight = pageHeight - margin * 2;
+      const imageWidth = availableWidth;
+      const imageHeight = (canvas.height * imageWidth) / canvas.width;
+      const imageData = canvas.toDataURL('image/png');
+
+      if (imageHeight <= availableHeight) {
+        pdf.addImage(imageData, 'PNG', margin, margin, imageWidth, imageHeight);
+      } else {
+        let remainingHeight = imageHeight;
+        let yOffset = margin;
+
+        while (remainingHeight > 0) {
+          pdf.addImage(imageData, 'PNG', margin, yOffset, imageWidth, imageHeight);
+          remainingHeight -= availableHeight;
+
+          if (remainingHeight > 0) {
+            pdf.addPage();
+            yOffset -= availableHeight;
+          }
+        }
+      }
+
+      pdf.save(getPdfFileName(invoice.number));
+    } catch {
+      setError('Could not generate the PDF. Please try printing instead.');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const handleEmail = () => {
@@ -81,10 +162,16 @@ export default function InvoiceActions({ invoice, settings }) {
             exit={{ opacity: 0, height: 0 }}
             className="space-y-2 overflow-hidden"
           >
-            <Button variant="outline" className="w-full gap-2 h-10" onClick={handlePrint}>
-              <Printer className="w-4 h-4" />
-              Print / Save as PDF
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" className="w-full gap-2 h-10" onClick={handlePrint}>
+                <Printer className="w-4 h-4" />
+                Print
+              </Button>
+              <Button variant="outline" className="w-full gap-2 h-10" onClick={handleSavePdf} disabled={isGeneratingPdf}>
+                <FileDown className="w-4 h-4" />
+                {isGeneratingPdf ? 'Saving...' : 'Save as PDF'}
+              </Button>
+            </div>
             <Button variant="outline" className="w-full gap-2 h-10" onClick={handleEmail}>
               <Mail className="w-4 h-4" />
               Email to Client
@@ -94,7 +181,7 @@ export default function InvoiceActions({ invoice, settings }) {
       </AnimatePresence>
 
       <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-        Use "Print / Save as PDF" to save a clean PDF. Use your browser's "Save as PDF" option in the print dialog.
+        Use "Save as PDF" to download the invoice directly, or print a paper copy.
       </p>
     </div>
   );

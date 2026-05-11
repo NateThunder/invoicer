@@ -10,9 +10,35 @@ import InvoicePreview from '@/components/invoice/InvoicePreview';
 import InvoiceActions from '@/components/invoice/InvoiceActions';
 import { currencyOptions } from '@/lib/currency';
 
+const today = () => format(new Date(), 'yyyy-MM-dd');
+
+const sanitizeInvoiceName = (name) => {
+  const normalizedName = name
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalizedName || 'CLIENT';
+};
+
+const formatInvoiceDate = (date) => {
+  const dateToFormat = date || today();
+
+  return format(new Date(`${dateToFormat}T00:00:00`), 'yyyyMMdd');
+};
+
+const createInvoiceNumber = ({ clientName = '', date = '', counter }) => {
+  const namePart = sanitizeInvoiceName(clientName);
+  const datePart = formatInvoiceDate(date);
+  const sequencePart = String(counter).padStart(3, '0');
+
+  return `${namePart}-${datePart}-${sequencePart}`;
+};
+
 const createEmptyInvoice = (number) => ({
   number,
-  date: format(new Date(), 'yyyy-MM-dd'),
+  date: today(),
   dueDate: '',
   currency: 'USD',
   clientName: '',
@@ -30,10 +56,18 @@ export default function InvoiceApp() {
   const [invoiceCounter, setInvoiceCounter] = useLocalStorage('invoice-counter', 1);
   const [activeTab, setActiveTab] = useState('invoice');
 
-  const invoiceNumber = useMemo(() => `INV-${String(invoiceCounter).padStart(4, '0')}`, [invoiceCounter]);
-  const [invoice, setInvoice] = useLocalStorage('invoice-draft', createEmptyInvoice(invoiceNumber));
+  const initialInvoiceNumber = createInvoiceNumber({ counter: invoiceCounter });
+  const [invoice, setInvoice] = useLocalStorage('invoice-draft', createEmptyInvoice(initialInvoiceNumber));
+  const invoiceNumber = useMemo(
+    () => createInvoiceNumber({
+      clientName: invoice.clientName,
+      date: invoice.date,
+      counter: invoiceCounter,
+    }),
+    [invoice.clientName, invoice.date, invoiceCounter]
+  );
 
-  // Keep invoice number in sync with counter
+  // Keep invoice number in sync with client, date, and counter.
   useEffect(() => {
     setInvoice(prev => ({ ...prev, number: invoiceNumber }));
   }, [invoiceNumber]);
@@ -94,7 +128,7 @@ export default function InvoiceApp() {
   const handleReset = () => {
     const nextCounter = invoiceCounter + 1;
     setInvoiceCounter(nextCounter);
-    const nextNumber = `INV-${String(nextCounter).padStart(4, '0')}`;
+    const nextNumber = createInvoiceNumber({ counter: nextCounter });
     setInvoice(createEmptyInvoice(nextNumber));
   };
 

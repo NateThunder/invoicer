@@ -45,7 +45,7 @@ const createEmptyInvoice = (number) => ({
   clientAddress: '',
   clientEmail: '',
   taxRate: '',
-  items: [{ description: '', quantity: 1, rate: 0, total: 0 }],
+  items: [{ description: '', quantity: '', rate: '', total: 0 }],
 });
 
 export default function InvoiceApp() {

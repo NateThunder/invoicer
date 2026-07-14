@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsContent } from "@/components/ui/tabs";
 import { Building2, Users, FileText, Eye, ChevronDown, PackageOpen } from "lucide-react";
 import useLocalStorage from '@/lib/useLocalStorage';
 import BusinessManager from '@/components/invoice/BusinessManager';
@@ -9,6 +9,7 @@ import CatalogItemsPanel from '@/components/invoice/CatalogItemsPanel';
 import InvoiceForm from '@/components/invoice/InvoiceForm';
 import InvoicePreview from '@/components/invoice/InvoicePreview';
 import InvoiceActions from '@/components/invoice/InvoiceActions';
+import MobileIconTab from '@/components/invoice/MobileIconTab';
 import {
   addCatalogItemToInvoice,
   createBlankInvoiceItem,
@@ -176,6 +177,14 @@ export default function InvoiceApp() {
     }));
   };
 
+  const handleOpenItems = () => {
+    setActiveTab('items');
+
+    if (window.matchMedia?.('(max-width: 1023px)').matches) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   const handleCurrencyChange = (currency) => {
     setInvoice(prev => (
       prev.currency === currency ? prev : { ...prev, currency }
@@ -317,24 +326,12 @@ export default function InvoiceApp() {
           {/* Left panel */}
           <div className="min-w-0 print:hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <div className="mb-6 overflow-x-auto pb-1">
-                <TabsList className="h-11 w-max min-w-full justify-start">
-                  <TabsTrigger value="businesses" className="min-w-24 flex-1 gap-1.5 text-xs">
-                    <Building2 className="w-3.5 h-3.5" />
-                    Businesses
-                  </TabsTrigger>
-                  <TabsTrigger value="items" className="min-w-24 flex-1 gap-1.5 text-xs">
-                    <PackageOpen className="w-3.5 h-3.5" />
-                    Items
-                  </TabsTrigger>
-                  <TabsTrigger value="clients" className="min-w-24 flex-1 gap-1.5 text-xs">
-                    <Users className="w-3.5 h-3.5" />
-                    Clients
-                  </TabsTrigger>
-                  <TabsTrigger value="invoice" className="min-w-24 flex-1 gap-1.5 text-xs">
-                    <FileText className="w-3.5 h-3.5" />
-                    Invoice
-                  </TabsTrigger>
+              <div className="mb-6 overflow-visible pb-1 sm:overflow-x-auto">
+                <TabsList className="h-11 w-full justify-start sm:w-max sm:min-w-full">
+                  <MobileIconTab value="businesses" label="Businesses" icon={Building2} onShortPress={setActiveTab} />
+                  <MobileIconTab value="items" label="Items" icon={PackageOpen} onShortPress={setActiveTab} />
+                  <MobileIconTab value="clients" label="Clients" icon={Users} onShortPress={setActiveTab} />
+                  <MobileIconTab value="invoice" label="Invoice" icon={FileText} onShortPress={setActiveTab} />
                 </TabsList>
               </div>
 
@@ -379,7 +376,7 @@ export default function InvoiceApp() {
                     onSetActiveClient={setActiveClientId}
                     catalogItems={activeCatalogItems}
                     onAddCatalogItem={handleAddCatalogItem}
-                    onOpenItems={() => setActiveTab('items')}
+                    onOpenItems={handleOpenItems}
                     businessId={activeBusinessId}
                     onSaveCatalogItem={handleSaveInvoiceItem}
                   />

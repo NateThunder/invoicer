@@ -1,5 +1,5 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import InvoiceApp from './InvoiceApp';
@@ -46,7 +46,26 @@ beforeEach(() => {
   window.localStorage.setItem('invoice-draft', JSON.stringify(blankDraft));
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
 describe('InvoiceApp catalogue integration', () => {
+  it('opens Items at the top of the page from the empty mobile picker', async () => {
+    const user = userEvent.setup();
+    const scrollTo = vi.fn();
+    window.localStorage.setItem('invoice-catalog-items', JSON.stringify([]));
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
+    vi.stubGlobal('scrollTo', scrollTo);
+
+    render(<InvoiceApp />);
+    await user.click(screen.getByRole('button', { name: 'Create one' }));
+
+    expect(screen.getByRole('tab', { name: 'Items' })).toHaveAttribute('data-state', 'active');
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+  });
+
   it('saves and updates invoice lines without treating quantity as a catalogue change', async () => {
     const user = userEvent.setup();
     render(<InvoiceApp />);

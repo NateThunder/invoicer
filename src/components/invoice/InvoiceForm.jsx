@@ -22,6 +22,8 @@ export default function InvoiceForm({
   catalogItems,
   onAddCatalogItem,
   onOpenItems,
+  businessId,
+  onSaveCatalogItem,
 }) {
   const update = (field, value) => onChange({ ...invoice, [field]: value });
 
@@ -116,7 +118,14 @@ export default function InvoiceForm({
             onOpenItems={onOpenItems}
           />
         </div>
-        <LineItemsTable items={invoice.items} currency={invoice.currency} onChange={(items) => update('items', items)} />
+        <LineItemsTable
+          items={invoice.items}
+          currency={invoice.currency}
+          businessId={businessId}
+          catalogItems={catalogItems}
+          onChange={(items) => update('items', items)}
+          onSaveItem={onSaveCatalogItem}
+        />
       </div>
 
       {/* Tax */}

@@ -1,8 +1,3 @@
-export const CATALOG_ITEM_TYPES = {
-  product: 'Product',
-  service: 'Service',
-};
-
 export const createBlankInvoiceItem = () => ({
   description: '',
   details: '',
@@ -21,32 +16,48 @@ export function isDuplicateCatalogItem(items, candidate, excludedId = null) {
   return items.some((item) => (
     item.id !== excludedId &&
     item.businessId === candidate.businessId &&
-    item.type === candidate.type &&
     normalizeName(item.name) === normalizedCandidateName
   ));
 }
 
-export function getVisibleCatalogItems(items, { businessId, search = '', type = 'all' }) {
+export function getVisibleCatalogItems(items, { businessId, search = '' }) {
   const normalizedSearch = search.trim().toLocaleLowerCase();
 
   return items
     .filter((item) => item.businessId === businessId)
-    .filter((item) => type === 'all' || item.type === type)
     .filter((item) => (
       !normalizedSearch ||
       item.name.toLocaleLowerCase().includes(normalizedSearch) ||
       (item.details || '').toLocaleLowerCase().includes(normalizedSearch)
     ))
-    .sort((a, b) => (
-      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) ||
-      a.type.localeCompare(b.type)
-    ));
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+}
+
+export function createCatalogItemId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+export function catalogItemMatchesInvoiceLine(catalogItem, invoiceLine) {
+  if (!catalogItem || !invoiceLine) return false;
+
+  return (
+    normalizeName(catalogItem.name) === normalizeName(invoiceLine.description) &&
+    (catalogItem.details || '').trim() === (invoiceLine.details || '').trim() &&
+    invoiceLine.rate !== '' &&
+    invoiceLine.rate != null &&
+    Number(catalogItem.price || 0) === Number(invoiceLine.rate || 0)
+  );
 }
 
 export function catalogItemToInvoiceLine(item) {
   const price = Number(item.price) || 0;
 
   return {
+    catalogItemId: item.id,
     description: item.name,
     details: item.details || '',
     quantity: '1',

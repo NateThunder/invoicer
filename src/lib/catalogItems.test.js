@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addCatalogItemToInvoice,
+  catalogItemMatchesInvoiceLine,
   createBlankInvoiceItem,
   getVisibleCatalogItems,
   isDuplicateCatalogItem,
@@ -13,7 +14,7 @@ const catalogItems = [
 ];
 
 describe('catalog item helpers', () => {
-  it('detects duplicate names only within the same business and type', () => {
+  it('detects duplicate names within a business regardless of legacy type data', () => {
     expect(isDuplicateCatalogItem(catalogItems, {
       businessId: 'biz-1',
       type: 'product',
@@ -24,7 +25,7 @@ describe('catalog item helpers', () => {
       businessId: 'biz-1',
       type: 'service',
       name: 'Chocolate cake',
-    })).toBe(false);
+    })).toBe(true);
 
     expect(isDuplicateCatalogItem(catalogItems, {
       businessId: 'biz-2',
@@ -33,26 +34,18 @@ describe('catalog item helpers', () => {
     })).toBe(false);
   });
 
-  it('isolates by business, searches details, filters types, and sorts names', () => {
+  it('isolates by business, searches details, and sorts names', () => {
     const all = getVisibleCatalogItems(catalogItems, {
       businessId: 'biz-1',
       search: '',
-      type: 'all',
     });
     expect(all.map(item => item.name)).toEqual(['Chocolate cake', 'Guitar performance']);
 
     const detailMatch = getVisibleCatalogItems(catalogItems, {
       businessId: 'biz-1',
       search: 'twelve',
-      type: 'product',
     });
     expect(detailMatch.map(item => item.id)).toEqual(['2']);
-
-    expect(getVisibleCatalogItems(catalogItems, {
-      businessId: 'biz-1',
-      search: '',
-      type: 'service',
-    }).map(item => item.id)).toEqual(['1']);
   });
 
   it('replaces the untouched initial line with an independent snapshot', () => {
@@ -60,6 +53,7 @@ describe('catalog item helpers', () => {
     const result = addCatalogItemToInvoice([createBlankInvoiceItem()], source);
 
     expect(result).toEqual([{
+      catalogItemId: '2',
       description: 'Chocolate cake',
       details: 'Serves twelve',
       quantity: '1',
@@ -71,6 +65,22 @@ describe('catalog item helpers', () => {
     source.price = 60;
     expect(result[0].description).toBe('Chocolate cake');
     expect(result[0].rate).toBe('45');
+    expect(catalogItemMatchesInvoiceLine(source, result[0])).toBe(false);
+  });
+
+  it('matches catalogue fields while ignoring invoice quantity', () => {
+    const line = {
+      catalogItemId: '1',
+      description: ' Guitar performance ',
+      details: 'One hour',
+      quantity: '12',
+      rate: '80.00',
+      total: 960,
+    };
+
+    expect(catalogItemMatchesInvoiceLine(catalogItems[0], line)).toBe(true);
+    expect(catalogItemMatchesInvoiceLine(catalogItems[0], { ...line, rate: '81' })).toBe(false);
+    expect(catalogItemMatchesInvoiceLine({ ...catalogItems[0], price: 0 }, { ...line, rate: '' })).toBe(false);
   });
 
   it('appends to a non-empty invoice instead of replacing it', () => {

@@ -9,7 +9,12 @@ import CatalogItemsPanel from '@/components/invoice/CatalogItemsPanel';
 import InvoiceForm from '@/components/invoice/InvoiceForm';
 import InvoicePreview from '@/components/invoice/InvoicePreview';
 import InvoiceActions from '@/components/invoice/InvoiceActions';
-import { addCatalogItemToInvoice, createBlankInvoiceItem } from '@/lib/catalogItems';
+import {
+  addCatalogItemToInvoice,
+  createBlankInvoiceItem,
+  createCatalogItemId,
+  isDuplicateCatalogItem,
+} from '@/lib/catalogItems';
 
 const today = () => format(new Date(), 'yyyy-MM-dd');
 
@@ -105,6 +110,15 @@ export default function InvoiceApp() {
     });
   }, [setBusinesses]);
 
+  // Product/service categories are no longer part of saved items.
+  useEffect(() => {
+    setCatalogItems(current => {
+      if (current.every(item => !Object.hasOwn(item, 'type'))) return current;
+
+      return current.map(({ type: _type, ...item }) => item);
+    });
+  }, [setCatalogItems]);
+
   // The active business owns the currency used throughout the Items and Invoice tabs.
   useEffect(() => {
     if (!activeBusiness) return;
@@ -174,6 +188,55 @@ export default function InvoiceApp() {
         ? { ...business, currency }
         : business
     )));
+  };
+
+  const handleSaveInvoiceItem = (index, line) => {
+    if (!activeBusinessId || !(line.description || '').trim()) return;
+
+    const linkedItem = catalogItems.find(item => (
+      item.id === line.catalogItemId && item.businessId === activeBusinessId
+    ));
+
+    if (isDuplicateCatalogItem(
+      catalogItems,
+      { businessId: activeBusinessId, name: line.description },
+      linkedItem?.id
+    )) return;
+
+    const catalogItemId = linkedItem?.id || createCatalogItemId();
+    const name = line.description.trim();
+    const details = (line.details || '').trim();
+    const price = Number(line.rate || 0);
+    const savedItem = {
+      id: catalogItemId,
+      businessId: activeBusinessId,
+      name,
+      details,
+      price,
+    };
+
+    setCatalogItems(current => (
+      linkedItem
+        ? current.map(item => item.id === catalogItemId ? savedItem : item)
+        : [...current, savedItem]
+    ));
+
+    setInvoice(prev => ({
+      ...prev,
+      items: prev.items.map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+
+        const quantity = Number(item.quantity || 0);
+        return {
+          ...item,
+          catalogItemId,
+          description: name,
+          details,
+          rate: String(price),
+          total: quantity * price,
+        };
+      }),
+    }));
   };
 
   const handleDeleteBusiness = (id) => {
@@ -317,6 +380,8 @@ export default function InvoiceApp() {
                     catalogItems={activeCatalogItems}
                     onAddCatalogItem={handleAddCatalogItem}
                     onOpenItems={() => setActiveTab('items')}
+                    businessId={activeBusinessId}
+                    onSaveCatalogItem={handleSaveInvoiceItem}
                   />
                 </TabsContent>
               </div>

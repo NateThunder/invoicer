@@ -16,24 +16,15 @@ import {
 import { formatCurrency } from '@/lib/currency';
 import CurrencySelect from './CurrencySelect';
 import {
-  CATALOG_ITEM_TYPES,
+  createCatalogItemId,
   getVisibleCatalogItems,
   isDuplicateCatalogItem,
 } from '@/lib/catalogItems';
 
 const emptyItem = {
-  type: 'product',
   name: '',
   details: '',
   price: '',
-};
-
-const createId = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
 function CatalogItemForm({ initial, businessId, items, onSave, onCancel, isNew }) {
@@ -57,7 +48,7 @@ function CatalogItemForm({ initial, businessId, items, onSave, onCancel, isNew }
     if (!canSave) return;
 
     onSave({
-      ...form,
+      ...(form.id ? { id: form.id } : {}),
       businessId,
       name: form.name.trim(),
       details: form.details.trim(),
@@ -70,19 +61,6 @@ function CatalogItemForm({ initial, businessId, items, onSave, onCancel, isNew }
       <p className="text-sm font-semibold">{isNew ? 'Add Item' : 'Edit Item'}</p>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor={`${fieldId}-type`} className="text-xs font-medium">Type *</Label>
-          <select
-            id={`${fieldId}-type`}
-            value={form.type}
-            onChange={(event) => update('type', event.target.value)}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <option value="product">Product</option>
-            <option value="service">Service</option>
-          </select>
-        </div>
-
         <div className="space-y-1.5">
           <Label htmlFor={`${fieldId}-price`} className="text-xs font-medium">Price *</Label>
           <Input
@@ -100,14 +78,14 @@ function CatalogItemForm({ initial, businessId, items, onSave, onCancel, isNew }
           <Label htmlFor={`${fieldId}-name`} className="text-xs font-medium">Name *</Label>
           <Input
             id={`${fieldId}-name`}
-            placeholder="Chocolate cake or guitar performance"
+            placeholder="Logo design or consultation"
             value={form.name}
             onChange={(event) => update('name', event.target.value)}
             aria-invalid={duplicate}
           />
           {duplicate && (
             <p className="text-xs text-destructive" role="alert">
-              A {form.type} with this name already exists.
+              An item with this name already exists.
             </p>
           )}
         </div>
@@ -135,32 +113,6 @@ function CatalogItemForm({ initial, businessId, items, onSave, onCancel, isNew }
   );
 }
 
-function TypeFilters({ value, onChange }) {
-  return (
-    <div className="flex rounded-md border border-border bg-muted/40 p-1" aria-label="Filter items by type">
-      {[
-        ['all', 'All'],
-        ['product', 'Products'],
-        ['service', 'Services'],
-      ].map(([filterValue, label]) => (
-        <button
-          key={filterValue}
-          type="button"
-          aria-pressed={value === filterValue}
-          className={`flex-1 rounded px-2 py-1 text-xs font-medium transition-colors ${
-            value === filterValue
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-          onClick={() => onChange(filterValue)}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export default function CatalogItemsPanel({
   items,
   businessId,
@@ -173,14 +125,12 @@ export default function CatalogItemsPanel({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
   const [flash, setFlash] = useState('');
 
   useEffect(() => {
     setShowForm(false);
     setEditingId(null);
     setSearch('');
-    setTypeFilter('all');
     setFlash('');
   }, [businessId]);
 
@@ -196,12 +146,12 @@ export default function CatalogItemsPanel({
     [items, businessId]
   );
   const visibleItems = useMemo(
-    () => getVisibleCatalogItems(items, { businessId, search, type: typeFilter }),
-    [items, businessId, search, typeFilter]
+    () => getVisibleCatalogItems(items, { businessId, search }),
+    [items, businessId, search]
   );
 
   const handleAdd = (form) => {
-    onSaveItems([...items, { ...form, id: createId() }]);
+    onSaveItems([...items, { ...form, id: createCatalogItemId() }]);
     setShowForm(false);
     setFlash('Item saved');
   };
@@ -242,7 +192,7 @@ export default function CatalogItemsPanel({
         </div>
         <div>
           <h2 className="font-heading text-lg font-semibold text-foreground">Items</h2>
-          <p className="text-sm text-muted-foreground">Manage reusable products and services</p>
+          <p className="text-sm text-muted-foreground">Manage reusable invoice items</p>
         </div>
       </div>
 
@@ -280,14 +230,13 @@ export default function CatalogItemsPanel({
                   aria-label="Search saved items"
                 />
               </div>
-              <TypeFilters value={typeFilter} onChange={setTypeFilter} />
             </div>
           )}
 
           {businessItems.length === 0 && !showForm && (
             <div className="py-6 text-center text-muted-foreground">
               <PackageOpen className="mx-auto mb-2 h-10 w-10 opacity-30" />
-              <p className="text-sm">No saved products or services yet.</p>
+              <p className="text-sm">No saved items yet.</p>
             </div>
           )}
 
@@ -311,11 +260,8 @@ export default function CatalogItemsPanel({
                   <div className="rounded-lg border border-border bg-card p-3 transition-shadow hover:shadow-sm">
                     <div className="flex items-start gap-3">
                       <div className="min-w-0 flex-1">
-                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <div className="mb-1">
                           <p className="truncate text-sm font-semibold text-foreground">{item.name}</p>
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            {CATALOG_ITEM_TYPES[item.type]}
-                          </span>
                         </div>
                         {item.details && (
                           <p className="line-clamp-2 whitespace-pre-line text-xs leading-relaxed text-muted-foreground">{item.details}</p>

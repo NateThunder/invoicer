@@ -19,17 +19,15 @@ describe('CatalogItemPicker', () => {
     expect(onOpenItems).toHaveBeenCalledOnce();
   });
 
-  it('searches, filters, formats, and selects a saved item', async () => {
+  it('searches, formats, and selects a saved item', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     render(<CatalogItemPicker items={items} currency="GBP" onSelect={onSelect} onOpenItems={() => {}} />);
 
     await user.click(screen.getByRole('button', { name: /Add saved item/ }));
     expect(screen.getByText('£45.00')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Services' }));
+    await user.type(screen.getByLabelText('Search saved items'), 'guitar');
     expect(screen.queryByText('Chocolate Cake')).not.toBeInTheDocument();
-
-    await user.type(screen.getByLabelText('Search products and services'), 'guitar');
     await user.click(screen.getByRole('option', { name: /Guitar Performance/ }));
 
     expect(onSelect).toHaveBeenCalledWith(items[1]);

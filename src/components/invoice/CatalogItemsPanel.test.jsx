@@ -34,13 +34,11 @@ afterEach(() => {
 });
 
 describe('CatalogItemsPanel', () => {
-  it('creates a trimmed product with details and a numeric price', async () => {
+  it('creates a trimmed item with details and a numeric price', async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
     await user.click(screen.getByRole('button', { name: 'Add Item' }));
-    expect(screen.getByLabelText('Type *')).toHaveValue('product');
-
     await user.type(screen.getByLabelText('Name *'), '  Vanilla Cake  ');
     await user.type(screen.getByLabelText('Price *'), '25.50');
     await user.type(screen.getByLabelText('Details'), 'Serves eight');
@@ -51,7 +49,6 @@ describe('CatalogItemsPanel', () => {
     expect(JSON.parse(screen.getByTestId('stored-items').textContent)).toEqual([
       expect.objectContaining({
         businessId: 'biz-1',
-        type: 'product',
         name: 'Vanilla Cake',
         details: 'Serves eight',
         price: 25.5,
@@ -59,7 +56,7 @@ describe('CatalogItemsPanel', () => {
     ]);
   });
 
-  it('blocks case-insensitive duplicates within a type', async () => {
+  it('blocks case-insensitive duplicate names', async () => {
     const user = userEvent.setup();
     render(<Harness initialItems={savedItems} />);
 
@@ -67,20 +64,15 @@ describe('CatalogItemsPanel', () => {
     await user.type(screen.getByLabelText('Name *'), ' chocolate cake ');
     await user.type(screen.getByLabelText('Price *'), '50');
 
-    expect(screen.getByRole('alert')).toHaveTextContent('A product with this name already exists.');
+    expect(screen.getByRole('alert')).toHaveTextContent('An item with this name already exists.');
     expect(screen.getByRole('button', { name: 'Add Item' })).toBeDisabled();
   });
 
-  it('searches details, filters types, and hides other businesses', async () => {
+  it('searches details and hides other businesses', async () => {
     const user = userEvent.setup();
     render(<Harness initialItems={savedItems} />);
 
     expect(screen.queryByText('Hidden Brownies')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Services' }));
-    expect(screen.getByText('Guitar Performance')).toBeInTheDocument();
-    expect(screen.queryByText('Chocolate Cake')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'All' }));
     await user.type(screen.getByLabelText('Search saved items'), 'twelve');
     expect(screen.getByText('Chocolate Cake')).toBeInTheDocument();
     expect(screen.queryByText('Guitar Performance')).not.toBeInTheDocument();

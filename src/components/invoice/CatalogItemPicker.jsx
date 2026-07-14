@@ -3,21 +3,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChevronDown, PackageOpen, Search } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
-import { CATALOG_ITEM_TYPES, getVisibleCatalogItems } from '@/lib/catalogItems';
+import { getVisibleCatalogItems } from '@/lib/catalogItems';
 
 export default function CatalogItemPicker({ items, currency, onSelect, onOpenItems }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
   const ref = useRef(null);
 
   const visibleItems = useMemo(
     () => getVisibleCatalogItems(items, {
       businessId: items[0]?.businessId,
       search,
-      type: typeFilter,
     }),
-    [items, search, typeFilter]
+    [items, search]
   );
 
   useEffect(() => {
@@ -32,7 +30,6 @@ export default function CatalogItemPicker({ items, currency, onSelect, onOpenIte
   const closePicker = () => {
     setOpen(false);
     setSearch('');
-    setTypeFilter('all');
   };
 
   const handleSelect = (item) => {
@@ -78,37 +75,15 @@ export default function CatalogItemPicker({ items, currency, onSelect, onOpenIte
               <Input
                 autoFocus
                 type="search"
-                placeholder="Search products and services..."
+                placeholder="Search saved items..."
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Escape') closePicker();
                 }}
                 className="h-8 pl-8 text-sm"
-                aria-label="Search products and services"
+                aria-label="Search saved items"
               />
-            </div>
-
-            <div className="flex gap-1" aria-label="Filter saved items by type">
-              {[
-                ['all', 'All'],
-                ['product', 'Products'],
-                ['service', 'Services'],
-              ].map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={`flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors ${
-                    typeFilter === value
-                      ? 'bg-muted text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  aria-pressed={typeFilter === value}
-                  onClick={() => setTypeFilter(value)}
-                >
-                  {label}
-                </button>
-              ))}
             </div>
           </div>
 
@@ -127,12 +102,7 @@ export default function CatalogItemPicker({ items, currency, onSelect, onOpenIte
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
-                        <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          {CATALOG_ITEM_TYPES[item.type]}
-                        </span>
-                      </div>
+                      <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
                       {item.details && (
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.details}</p>
                       )}

@@ -2,11 +2,22 @@ import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2 } from "lucide-react";
+import { Check, Plus, Save, Trash2 } from "lucide-react";
 import { formatCurrency } from '@/lib/currency';
-import { createBlankInvoiceItem } from '@/lib/catalogItems';
+import {
+  catalogItemMatchesInvoiceLine,
+  createBlankInvoiceItem,
+  isDuplicateCatalogItem,
+} from '@/lib/catalogItems';
 
-export default function LineItemsTable({ items, currency, onChange }) {
+export default function LineItemsTable({
+  items,
+  currency,
+  businessId,
+  catalogItems,
+  onChange,
+  onSaveItem,
+}) {
   const updateItem = (index, field, value) => {
     const updated = items.map((item, i) => {
       if (i !== index) return item;
@@ -35,6 +46,17 @@ export default function LineItemsTable({ items, currency, onChange }) {
         const detailsId = `line-item-${i}-details`;
         const quantityId = `line-item-${i}-quantity`;
         const rateId = `line-item-${i}-rate`;
+        const linkedCatalogItem = catalogItems.find(candidate => (
+          candidate.id === item.catalogItemId && candidate.businessId === businessId
+        ));
+        const isSaved = catalogItemMatchesInvoiceLine(linkedCatalogItem, item);
+        const isDuplicate = !isSaved && isDuplicateCatalogItem(
+          catalogItems,
+          { businessId, name: item.description },
+          linkedCatalogItem?.id
+        );
+        const hasName = Boolean((item.description || '').trim());
+        const actionLabel = linkedCatalogItem ? 'Update item' : 'Save item';
 
         return (
           <div key={i} className="rounded-md border border-border bg-background p-3 shadow-sm">
@@ -119,6 +141,32 @@ export default function LineItemsTable({ items, currency, onChange }) {
                 <span className="text-sm font-semibold tabular-nums text-foreground">
                   {formatCurrency(item.total || 0, currency)}
                 </span>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0 flex-1" aria-live="polite">
+                  {isDuplicate && (
+                    <p className="text-xs text-destructive" role="alert">
+                      An item with this name is already saved.
+                    </p>
+                  )}
+                  {!businessId && (
+                    <p className="text-xs text-muted-foreground">Select a business to save this item.</p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  className={isSaved
+                    ? 'shrink-0 bg-green-600 text-white hover:bg-green-600 disabled:opacity-100'
+                    : 'shrink-0 bg-accent text-accent-foreground hover:bg-accent/90'
+                  }
+                  onClick={() => onSaveItem(i, item)}
+                  disabled={isSaved || !businessId || !hasName || isDuplicate}
+                >
+                  {isSaved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+                  {isSaved ? 'Saved' : actionLabel}
+                </Button>
               </div>
             </div>
           </div>

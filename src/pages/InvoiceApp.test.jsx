@@ -47,6 +47,64 @@ beforeEach(() => {
 });
 
 describe('InvoiceApp catalogue integration', () => {
+  it('saves and updates invoice lines without treating quantity as a catalogue change', async () => {
+    const user = userEvent.setup();
+    render(<InvoiceApp />);
+
+    const saveButton = screen.getByRole('button', { name: 'Save item' });
+    expect(saveButton).toBeDisabled();
+
+    await user.type(screen.getByLabelText('Item name'), '  Logo Design  ');
+    await user.type(screen.getByLabelText('Details'), 'Brand package');
+    await user.type(screen.getByLabelText('Rate'), '25');
+    await user.click(screen.getByRole('button', { name: 'Save item' }));
+
+    expect(screen.getByRole('button', { name: 'Saved' })).toBeDisabled();
+    let storedItems = JSON.parse(window.localStorage.getItem('invoice-catalog-items'));
+    const savedItem = storedItems.find(item => item.name === 'Logo Design');
+    expect(savedItem).toMatchObject({
+      businessId: 'biz-1',
+      details: 'Brand package',
+      price: 25,
+    });
+    expect(savedItem).not.toHaveProperty('type');
+
+    await user.type(screen.getByLabelText('Qty'), '2');
+    expect(screen.getByRole('button', { name: 'Saved' })).toBeDisabled();
+
+    await user.clear(screen.getByLabelText('Rate'));
+    await user.type(screen.getByLabelText('Rate'), '30');
+    expect(screen.getByRole('button', { name: 'Update item' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Update item' }));
+
+    storedItems = JSON.parse(window.localStorage.getItem('invoice-catalog-items'));
+    expect(storedItems).toHaveLength(2);
+    expect(storedItems.find(item => item.id === savedItem.id).price).toBe(30);
+    expect(screen.getByRole('button', { name: 'Saved' })).toBeDisabled();
+
+    await user.clear(screen.getByLabelText('Item name'));
+    await user.type(screen.getByLabelText('Item name'), 'chocolate cake');
+    expect(screen.getByRole('alert')).toHaveTextContent('An item with this name is already saved.');
+    expect(screen.getByRole('button', { name: 'Update item' })).toBeDisabled();
+  });
+
+  it('returns a linked invoice line to Save item when its catalogue item is deleted', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<InvoiceApp />);
+
+    await user.click(screen.getByRole('button', { name: /Add saved item/ }));
+    await user.click(screen.getByRole('option', { name: /Chocolate Cake/ }));
+    expect(screen.getByRole('button', { name: 'Saved' })).toBeDisabled();
+
+    await user.click(screen.getByRole('tab', { name: 'Items' }));
+    await user.click(screen.getByRole('button', { name: 'Delete Chocolate Cake' }));
+    await user.click(screen.getByRole('tab', { name: 'Invoice' }));
+
+    expect(screen.getByRole('button', { name: 'Save item' })).toBeEnabled();
+    expect(screen.getByLabelText('Item name')).toHaveValue('Chocolate Cake');
+  });
+
   it('links the Items and Invoice currency controls and persists the business default', async () => {
     const user = userEvent.setup();
     render(<InvoiceApp />);

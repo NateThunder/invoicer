@@ -14,6 +14,7 @@ const emptyBusiness = {
   email: '',
   phone: '',
   logo: null,
+  currency: 'GBP',
 };
 
 function BusinessForm({ initial, onSave, onCancel, isNew }) {
@@ -81,7 +82,7 @@ function BusinessForm({ initial, onSave, onCancel, isNew }) {
   );
 }
 
-export default function BusinessManager({ businesses, activeBusiness, onSaveBusinesses, onSetActive }) {
+export default function BusinessManager({ businesses, activeBusiness, onSaveBusinesses, onSetActive, onDeleteBusiness }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [flash, setFlash] = useState('');
@@ -108,11 +109,7 @@ export default function BusinessManager({ businesses, activeBusiness, onSaveBusi
   };
 
   const handleDelete = (id) => {
-    const updated = businesses.filter(b => b.id !== id);
-    onSaveBusinesses(updated);
-    if (activeBusiness === id) {
-      onSetActive(updated[0]?.id || null);
-    }
+    onDeleteBusiness(id);
   };
 
   return (
@@ -187,7 +184,13 @@ export default function BusinessManager({ businesses, activeBusiness, onSaveBusi
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingId(biz.id)}>
                     <Pencil className="w-3.5 h-3.5" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(biz.id)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    onClick={() => handleDelete(biz.id)}
+                    aria-label={`Delete ${biz.businessName}`}
+                  >
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>

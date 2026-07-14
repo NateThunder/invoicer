@@ -6,10 +6,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileText, RotateCcw } from "lucide-react";
 import LineItemsTable from './LineItemsTable';
 import ClientSelector from './ClientSelector';
+import CatalogItemPicker from './CatalogItemPicker';
+import CurrencySelect from './CurrencySelect';
 import { formatCurrency } from '@/lib/currency';
 import { getInvoiceTotals } from '@/lib/invoiceTotals';
 
-export default function InvoiceForm({ invoice, onChange, onReset, clients, currencyOptions, activeClientId, onSetActiveClient }) {
+export default function InvoiceForm({
+  invoice,
+  onChange,
+  onReset,
+  clients,
+  onCurrencyChange,
+  activeClientId,
+  onSetActiveClient,
+  catalogItems,
+  onAddCatalogItem,
+  onOpenItems,
+}) {
   const update = (field, value) => onChange({ ...invoice, [field]: value });
 
   const { subtotal, taxRate, tax, total, hasTax } = getInvoiceTotals(invoice);
@@ -62,19 +75,12 @@ export default function InvoiceForm({ invoice, onChange, onReset, clients, curre
           <Label className="text-sm font-medium whitespace-nowrap">Due Date</Label>
           <Input type="date" value={invoice.dueDate} onChange={(e) => update('dueDate', e.target.value)} className="px-2 text-sm" />
         </div>
-        <div className="space-y-1.5 sm:col-span-3">
-          <Label className="text-sm font-medium">Currency</Label>
-          <select
-            value={invoice.currency || 'USD'}
-            onChange={(e) => update('currency', e.target.value)}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            {currencyOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.value} - {option.label}
-              </option>
-            ))}
-          </select>
+        <div className="sm:col-span-3">
+          <CurrencySelect
+            id="invoice-currency"
+            value={invoice.currency}
+            onChange={onCurrencyChange}
+          />
         </div>
       </div>
 
@@ -102,6 +108,14 @@ export default function InvoiceForm({ invoice, onChange, onReset, clients, curre
       {/* Line items */}
       <div>
         <Label className="text-sm font-medium mb-3 block">Line Items</Label>
+        <div className="mb-3">
+          <CatalogItemPicker
+            items={catalogItems}
+            currency={invoice.currency}
+            onSelect={onAddCatalogItem}
+            onOpenItems={onOpenItems}
+          />
+        </div>
         <LineItemsTable items={invoice.items} currency={invoice.currency} onChange={(items) => update('items', items)} />
       </div>
 

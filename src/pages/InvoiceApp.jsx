@@ -1,14 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Building2, Users, FileText, Eye, ChevronDown } from "lucide-react";
+import { Building2, Users, FileText, Eye, ChevronDown, PackageOpen } from "lucide-react";
 import useLocalStorage from '@/lib/useLocalStorage';
 import BusinessManager from '@/components/invoice/BusinessManager';
 import ClientsPanel from '@/components/invoice/ClientsPanel';
+import CatalogItemsPanel from '@/components/invoice/CatalogItemsPanel';
 import InvoiceForm from '@/components/invoice/InvoiceForm';
 import InvoicePreview from '@/components/invoice/InvoicePreview';
 import InvoiceActions from '@/components/invoice/InvoiceActions';
-import { currencyOptions } from '@/lib/currency';
+import { addCatalogItemToInvoice, createBlankInvoiceItem } from '@/lib/catalogItems';
 
 const today = () => format(new Date(), 'yyyy-MM-dd');
 
@@ -40,12 +41,12 @@ const createEmptyInvoice = (number) => ({
   number,
   date: today(),
   dueDate: '',
-  currency: 'USD',
+  currency: 'GBP',
   clientName: '',
   clientAddress: '',
   clientEmail: '',
   taxRate: '',
-  items: [{ description: '', quantity: '', rate: '', total: 0 }],
+  items: [createBlankInvoiceItem()],
 });
 
 export default function InvoiceApp() {
@@ -53,6 +54,7 @@ export default function InvoiceApp() {
   const [activeBusinessId, setActiveBusinessId] = useLocalStorage('invoice-active-business', null);
   const [clients, setClients] = useLocalStorage('invoice-clients', []);
   const [activeClientId, setActiveClientId] = useLocalStorage('invoice-active-client', null);
+  const [catalogItems, setCatalogItems] = useLocalStorage('invoice-catalog-items', []);
   const [invoiceCounter, setInvoiceCounter] = useLocalStorage('invoice-counter', 1);
   const [activeTab, setActiveTab] = useState('invoice');
 
@@ -74,7 +76,7 @@ export default function InvoiceApp() {
 
   useEffect(() => {
     if (!invoice.currency) {
-      setInvoice(prev => ({ ...prev, currency: 'USD' }));
+      setInvoice(prev => ({ ...prev, currency: 'GBP' }));
     }
   }, [invoice.currency]);
 
@@ -86,6 +88,34 @@ export default function InvoiceApp() {
     () => clients.find(c => c.id === activeClientId) || null,
     [clients, activeClientId]
   );
+  const activeCatalogItems = useMemo(
+    () => catalogItems.filter(item => item.businessId === activeBusinessId),
+    [catalogItems, activeBusinessId]
+  );
+
+  // Give existing businesses a persisted default while preserving their other data.
+  useEffect(() => {
+    setBusinesses(current => {
+      if (current.every(business => business.currency)) return current;
+
+      return current.map(business => ({
+        ...business,
+        currency: business.currency || 'GBP',
+      }));
+    });
+  }, [setBusinesses]);
+
+  // The active business owns the currency used throughout the Items and Invoice tabs.
+  useEffect(() => {
+    if (!activeBusiness) return;
+
+    const businessCurrency = activeBusiness.currency || 'GBP';
+    setInvoice(prev => (
+      prev.currency === businessCurrency
+        ? prev
+        : { ...prev, currency: businessCurrency }
+    ));
+  }, [activeBusiness, setInvoice]);
 
   useEffect(() => {
     setInvoice(prev => {
@@ -125,11 +155,55 @@ export default function InvoiceApp() {
     setActiveTab('invoice');
   };
 
+  const handleAddCatalogItem = (catalogItem) => {
+    setInvoice(prev => ({
+      ...prev,
+      items: addCatalogItemToInvoice(prev.items, catalogItem),
+    }));
+  };
+
+  const handleCurrencyChange = (currency) => {
+    setInvoice(prev => (
+      prev.currency === currency ? prev : { ...prev, currency }
+    ));
+
+    if (!activeBusinessId) return;
+
+    setBusinesses(current => current.map(business => (
+      business.id === activeBusinessId
+        ? { ...business, currency }
+        : business
+    )));
+  };
+
+  const handleDeleteBusiness = (id) => {
+    const business = businesses.find(item => item.id === id);
+    if (!business) return;
+
+    const savedItemCount = catalogItems.filter(item => item.businessId === id).length;
+    const catalogueWarning = savedItemCount > 0
+      ? ` This will also delete ${savedItemCount} saved ${savedItemCount === 1 ? 'item' : 'items'}.`
+      : '';
+
+    if (!window.confirm(`Delete ${business.businessName}?${catalogueWarning}`)) return;
+
+    const updatedBusinesses = businesses.filter(item => item.id !== id);
+    setBusinesses(updatedBusinesses);
+    setCatalogItems(current => current.filter(item => item.businessId !== id));
+
+    if (activeBusinessId === id) {
+      setActiveBusinessId(updatedBusinesses[0]?.id || null);
+    }
+  };
+
   const handleReset = () => {
     const nextCounter = invoiceCounter + 1;
     setInvoiceCounter(nextCounter);
     const nextNumber = createInvoiceNumber({ counter: nextCounter });
-    setInvoice(createEmptyInvoice(nextNumber));
+    setInvoice({
+      ...createEmptyInvoice(nextNumber),
+      currency: activeBusiness?.currency || invoice.currency || 'GBP',
+    });
   };
 
   return (
@@ -176,24 +250,30 @@ export default function InvoiceApp() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 print:p-0 print:max-w-none">
-        <div className="grid lg:grid-cols-[420px_1fr] gap-8 print:block">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[420px_minmax(0,1fr)] print:block">
           {/* Left panel */}
-          <div className="print:hidden">
+          <div className="min-w-0 print:hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="w-full grid grid-cols-3 mb-6 h-11">
-                <TabsTrigger value="businesses" className="gap-1.5 text-xs">
-                  <Building2 className="w-3.5 h-3.5" />
-                  Businesses
-                </TabsTrigger>
-                <TabsTrigger value="clients" className="gap-1.5 text-xs">
-                  <Users className="w-3.5 h-3.5" />
-                  Clients
-                </TabsTrigger>
-                <TabsTrigger value="invoice" className="gap-1.5 text-xs">
-                  <FileText className="w-3.5 h-3.5" />
-                  Invoice
-                </TabsTrigger>
-              </TabsList>
+              <div className="mb-6 overflow-x-auto pb-1">
+                <TabsList className="h-11 w-max min-w-full justify-start">
+                  <TabsTrigger value="businesses" className="min-w-24 flex-1 gap-1.5 text-xs">
+                    <Building2 className="w-3.5 h-3.5" />
+                    Businesses
+                  </TabsTrigger>
+                  <TabsTrigger value="items" className="min-w-24 flex-1 gap-1.5 text-xs">
+                    <PackageOpen className="w-3.5 h-3.5" />
+                    Items
+                  </TabsTrigger>
+                  <TabsTrigger value="clients" className="min-w-24 flex-1 gap-1.5 text-xs">
+                    <Users className="w-3.5 h-3.5" />
+                    Clients
+                  </TabsTrigger>
+                  <TabsTrigger value="invoice" className="min-w-24 flex-1 gap-1.5 text-xs">
+                    <FileText className="w-3.5 h-3.5" />
+                    Invoice
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
               <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
                 <TabsContent value="businesses" className="mt-0">
@@ -202,6 +282,18 @@ export default function InvoiceApp() {
                     activeBusiness={activeBusinessId}
                     onSaveBusinesses={setBusinesses}
                     onSetActive={setActiveBusinessId}
+                    onDeleteBusiness={handleDeleteBusiness}
+                  />
+                </TabsContent>
+                <TabsContent value="items" className="mt-0">
+                  <CatalogItemsPanel
+                    items={catalogItems}
+                    businessId={activeBusinessId}
+                    currency={invoice.currency}
+                    onCurrencyChange={handleCurrencyChange}
+                    onSaveItems={setCatalogItems}
+                    onAddToInvoice={handleAddCatalogItem}
+                    onOpenBusinesses={() => setActiveTab('businesses')}
                   />
                 </TabsContent>
                 <TabsContent value="clients" className="mt-0">
@@ -219,9 +311,12 @@ export default function InvoiceApp() {
                     onChange={setInvoice}
                     onReset={handleReset}
                     clients={clients}
-                    currencyOptions={currencyOptions}
+                    onCurrencyChange={handleCurrencyChange}
                     activeClientId={activeClientId}
                     onSetActiveClient={setActiveClientId}
+                    catalogItems={activeCatalogItems}
+                    onAddCatalogItem={handleAddCatalogItem}
+                    onOpenItems={() => setActiveTab('items')}
                   />
                 </TabsContent>
               </div>
@@ -237,7 +332,7 @@ export default function InvoiceApp() {
           </div>
 
           {/* Right panel - live preview */}
-          <div>
+          <div className="min-w-0">
             <div className="print:hidden mb-4 flex items-center gap-2">
               <Eye className="w-4 h-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold text-foreground">Live Preview</h2>

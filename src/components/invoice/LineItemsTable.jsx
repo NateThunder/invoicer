@@ -1,10 +1,10 @@
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from '@/lib/currency';
-
-const createBlankItem = () => ({ description: '', quantity: '', rate: '', total: 0 });
+import { createBlankInvoiceItem } from '@/lib/catalogItems';
 
 export default function LineItemsTable({ items, currency, onChange }) {
   const updateItem = (index, field, value) => {
@@ -20,7 +20,7 @@ export default function LineItemsTable({ items, currency, onChange }) {
   };
 
   const addItem = () => {
-    onChange([...items, createBlankItem()]);
+    onChange([...items, createBlankInvoiceItem()]);
   };
 
   const removeItem = (index) => {
@@ -32,6 +32,7 @@ export default function LineItemsTable({ items, currency, onChange }) {
     <div className="space-y-3">
       {items.map((item, i) => {
         const descriptionId = `line-item-${i}-description`;
+        const detailsId = `line-item-${i}-details`;
         const quantityId = `line-item-${i}-quantity`;
         const rateId = `line-item-${i}-rate`;
 
@@ -55,7 +56,7 @@ export default function LineItemsTable({ items, currency, onChange }) {
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <label htmlFor={descriptionId} className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Description
+                  Item name
                 </label>
                 <Input
                   id={descriptionId}
@@ -63,6 +64,20 @@ export default function LineItemsTable({ items, currency, onChange }) {
                   value={item.description}
                   onChange={(e) => updateItem(i, 'description', e.target.value)}
                   className="h-10 border-input bg-card text-sm text-foreground shadow-sm placeholder:text-muted-foreground/70"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor={detailsId} className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Details
+                </label>
+                <Textarea
+                  id={detailsId}
+                  placeholder="Optional details"
+                  value={item.details ?? ''}
+                  onChange={(e) => updateItem(i, 'details', e.target.value)}
+                  rows={2}
+                  className="min-h-16 border-input bg-card text-sm text-foreground shadow-sm placeholder:text-muted-foreground/70"
                 />
               </div>
 

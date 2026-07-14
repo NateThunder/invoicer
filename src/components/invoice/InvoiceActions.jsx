@@ -73,6 +73,15 @@ export default function InvoiceActions({ invoice, settings }) {
         backgroundColor: '#ffffff',
         scale: Math.min(window.devicePixelRatio || 1, 2),
         useCORS: true,
+        windowWidth: 880,
+        onclone: (clonedDocument) => {
+          const clonedPreview = clonedDocument.getElementById('invoice-preview-print');
+          if (!clonedPreview) return;
+
+          clonedPreview.style.width = '800px';
+          clonedPreview.style.maxWidth = '800px';
+          clonedPreview.style.margin = '0';
+        },
       });
 
       const pdf = new jsPDF({

@@ -6,7 +6,7 @@ export const currencyOptions = [
   { value: 'AUD', label: 'Australian Dollar' },
 ];
 
-export function formatCurrency(amount, currency = 'USD') {
+export function formatCurrency(amount, currency = 'GBP') {
   try {
     return new Intl.NumberFormat(undefined, {
       style: 'currency',

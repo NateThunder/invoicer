@@ -78,15 +78,20 @@ export default function InvoicePreview({ invoice, settings }) {
           </tr>
         </thead>
         <tbody>
-          {invoice.items.filter(item => item.description || item.total > 0).map((item, i) => (
+          {invoice.items.filter(item => item.description || item.details || item.total > 0).map((item, i) => (
             <tr key={i} className="border-b border-gray-100">
-              <td className="py-3 text-sm text-gray-800">{item.description || '-'}</td>
+              <td className="py-3 pr-4 text-sm text-gray-800">
+                <p>{item.description || '-'}</p>
+                {item.details && (
+                  <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-gray-500">{item.details}</p>
+                )}
+              </td>
               <td className="py-3 text-sm text-gray-600 text-right tabular-nums">{item.quantity}</td>
               <td className="py-3 text-sm text-gray-600 text-right tabular-nums">{formatCurrency(parseFloat(item.rate || 0), invoice.currency)}</td>
               <td className="py-3 text-sm text-gray-900 font-medium text-right tabular-nums">{formatCurrency(item.total, invoice.currency)}</td>
             </tr>
           ))}
-          {invoice.items.filter(item => item.description || item.total > 0).length === 0 && (
+          {invoice.items.filter(item => item.description || item.details || item.total > 0).length === 0 && (
             <tr>
               <td colSpan={4} className="py-6 text-center text-sm text-gray-400">No items added yet</td>
             </tr>
